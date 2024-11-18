@@ -134,7 +134,7 @@ function Main {
     echo "CuPy Configuration:"
     RunOrDie python -c "import cupy; print(cupy); cupy.show_config()"
     echo "Running test..."
-    $test_retval = RunWithTimeout -timeout 18000 -output ../cupy_test_log.txt -- python -m pytest -rfEX @pytest_opts cupy_tests/core_tests
+    $test_retval = RunWithTimeout -timeout 18000 -output ../cupy_test_log.txt -- python -m pytest -rfEX @pytest_opts cupy_tests/core_tests | Tee-Object -Append ../cupy_test_log.txt
     popd
 
     # if (-Not $is_pull_request) {
