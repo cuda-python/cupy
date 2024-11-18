@@ -128,7 +128,7 @@ function Main {
 
     # Install dependency for cuDNN 8.3+
     echo ">> Installing zlib"
-    InstallZLIB
+    # InstallZLIB
 
     pushd tests
     echo "CuPy Configuration:"
