@@ -33,16 +33,16 @@ jobs:
         echo "nvidia-smi:"
         nvidia-smi
 
-    - name: Install deps
-      continue-on-error: true
-      run: |
-        git clone https://github.com/microsoft/vcpkg.git
-        cd vcpkg
-        .\bootstrap-vcpkg.bat
-        .\vcpkg.exe install zlib
-        .\vcpkg.exe integrate install
-        New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
-      shell: powershell
+    # - name: Install deps
+    #   continue-on-error: true
+    #   shell: powershell
+    #   run: |
+    #     git clone https://github.com/microsoft/vcpkg.git
+    #     cd vcpkg
+    #     .\bootstrap-vcpkg.bat
+    #     .\vcpkg.exe install zlib
+    #     .\vcpkg.exe integrate install
+    #     New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
 
     - name: test
       id: test
