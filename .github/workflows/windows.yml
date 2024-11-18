@@ -42,7 +42,6 @@ jobs:
         .\vcpkg.exe install zlib
         .\vcpkg.exe integrate install
         New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
-        Copy-Item -Path "vcpkg\installed\x64-windows\bin\zlib1.dll" -Destination "C:\Development\ZLIB\zlibwapi.dll"
       shell: powershell
 
     - name: test
