@@ -1,67 +1,93 @@
-# name: Tests linux
-#
-# on:
-#   pull_request:
-#
-# # Concurrency based on workflow name and branch
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.ref }}
-#   cancel-in-progress: true
-#
-# jobs:
-#   linux:
-#     runs-on:
-#       group: cupy-ci
-#       labels: linux-gpu
-#
-#     strategy:
-#       matrix:
-#         target: ["cuda11x-cuda-python", "cuda112", "cuda118", "cuda120", "cuda126"]
-#       fail-fast: false
-#
-#     env:
-#       CACHE_DIR: /home/runner/.cupy/kernel_cache
-#
-#     steps:
-#     - name: Checkout
-#       uses: actions/checkout@v4
-#       with:
-#         submodules: recursive
-#
-#     - name: Check
-#       run: |
-#         echo "UBUNTU VERSION:"
-#         lsb_release -a
-#         echo "nvidia-smi:"
-#         nvidia-smi
-#
-#     - name: Restore Cache
-#       uses: actions/cache/restore@v4
-#       with:
-#         path: ~/.cupy/kernel_cache
-#         key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
-#         restore-keys: |
-#           ${{ runner.os }}-cupy-cache
-#
-#     - name: Update driver
-#       run: |
-#         sudo ./.pfnci/linux/update-cuda-driver.sh
-#
-#     - name: build
-#       run: |
-#         ./.pfnci/linux/run.sh ${{ matrix.target }} build
-#
-#     - name: test
-#       id: test
-#       run: |
-#         ./.pfnci/linux/run.sh ${{ matrix.target }} test
-#       env:
-#         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
-#         GPU: 1
-#
-#     - name: Save Cache
-#       if: always()
-#       uses: actions/cache/save@v4
-#       with:
-#         path: ~/.cupy/kernel_cache
-#         key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
+name: Tests linux
+
+on:
+  pull_request:
+
+# Concurrency based on workflow name and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on:
+      group: cupy-ci
+      labels: linux-gpu
+
+    strategy:
+      matrix:
+        #target: ["cuda11x-cuda-python", "cuda112", "cuda118", "cuda120", "cuda126"]
+        target: ["cuda126"]
+      fail-fast: false
+
+    env:
+      #CACHE_DIR: /home/runner/.cupy/kernel_cache
+      CACHE_DIR: /tmp/cupy_cache
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Check
+      run: |
+        echo "UBUNTU VERSION:"
+        lsb_release -a
+        echo "nvidia-smi:"
+        nvidia-smi
+
+    # - name: Restore Cache
+    #   uses: actions/cache/restore@v4
+    #   with:
+    #     path: ~/.cupy/kernel_cache
+    #     key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
+    #     restore-keys: |
+    #       ${{ runner.os }}-cupy-cache
+
+    - name: Setup cache
+      id: gha-cupy-cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/cupy_cache  # TODO: should match CACHE_DIR
+        key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache  # TODO: this key might be too simple
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
+      name: List the state of node modules
+      continue-on-error: true
+      run: echo "no cache found, creating a new cache..."
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
+      name: List the state of node modules
+      continue-on-error: true
+      run: |
+        echo "cache is found"
+        ls /tmp/cupy_cache  # TODO: should match CACHE_DIR
+        echo "CACHE_DIR is ${CACHE_DIR}"
+        echo "CUDA_CACHE_PATH=${CACHE_DIR}/.nv" >> $GITHUB_ENV
+        echo "CUPY_CACHE_DIR=${CACHE_DIR}/.cupy/kernel_cache" >> $GITHUB_ENV
+
+    - name: Update driver
+      run: |
+        sudo ./.pfnci/linux/update-cuda-driver.sh
+
+    - name: build
+      run: |
+        ./.pfnci/linux/run.sh ${{ matrix.target }} build
+
+    - name: test
+      id: test
+      run: |
+        echo "CUDA_CACHE_PATH is ${CUDA_CACHE_PATH}"
+        echo "CUPY_CACHE_DIR is ${CUPY_CACHE_DIR}"
+        ./.pfnci/linux/run.sh ${{ matrix.target }} test
+      env:
+        CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
+        GPU: 1
+
+    # - name: Save Cache
+    #   if: always()
+    #   uses: actions/cache/save@v4
+    #   with:
+    #     path: ~/.cupy/kernel_cache
+    #     key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
