@@ -97,7 +97,7 @@ jobs:
         GPU: 1
       run: |
         echo "CACHE_DIR is ${{ env.CACHE_DIR }} (${CACHE_DIR})"
-        ls -l ${{ env.CACHE_DIR }}
+        ls -al ${{ env.CACHE_DIR }}
         # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
         # where CUPY_CACHE_DIR & co would be set accordingly
         CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
@@ -118,7 +118,7 @@ jobs:
         fi
 
         # this is cache_put in .pfnci/linux/run.sh
-        ls -l ${{ env.CACHE_DIR }}
+        ls -al ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
         echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
