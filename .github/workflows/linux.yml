@@ -20,54 +20,43 @@ jobs:
         target: ["cuda126"]
       fail-fast: false
 
-    env:
-      #CACHE_DIR: /home/runner/.cupy/kernel_cache
-      CACHE_DIR: /home/runner/cupy_cache
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Check
+    - name: Check system
       run: |
         echo "UBUNTU VERSION:"
         lsb_release -a
         echo "nvidia-smi:"
         nvidia-smi
 
-    # - name: Restore Cache
-    #   uses: actions/cache/restore@v4
-    #   with:
-    #     path: ~/.cupy/kernel_cache
-    #     key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
-    #     restore-keys: |
-    #       ${{ runner.os }}-cupy-cache
+    - name: Set up cache variables
+      run: |
+        echo "CACHE_DIR=/home/runner/cupy_cache" >> $GITHUB_ENV
+        echo "CACHE_ARCHIVE=/home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz" >> $GITHUB_ENV
+        # TODO: this key might be too simple?
+        echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $GITHUB_ENV
 
-    - name: Setup cache
+    - name: Set up cache
       id: gha-cupy-cache
       uses: actions/cache@v4
-      env:
-        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       with:
         path: ${{ env.CACHE_ARCHIVE }}
-        key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache  # TODO: this key might be too simple
+        key: ${{ env.CACHE_KEY }}
 
     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
-      name: Report cache restore status
+      name: Report cache restore status (miss)
       continue-on-error: true
-      env:
-        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       run: |
         echo "no cache found, creating a new cache..."
         mkdir -p "${{ env.CACHE_DIR }}"
 
     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
-      name: Report cache restore status
+      name: Report cache restore status (hit)
       continue-on-error: true
-      env:
-        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       run: |
         echo "cache is found"
         ls -l ${{ env.CACHE_ARCHIVE }}
@@ -89,11 +78,11 @@ jobs:
     - name: Build & test CuPy
       id: test
       env:
-        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
         GPU: 1
       run: |
         echo "CACHE_DIR is ${{ env.CACHE_DIR }} (${CACHE_DIR})"
+        ls -l ${{ env.CACHE_DIR }}
         # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
         # where CUPY_CACHE_DIR & co would be set accordingly
         #CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
@@ -104,10 +93,3 @@ jobs:
         ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
-
-    # - name: Save Cache
-    #   if: always()
-    #   uses: actions/cache/save@v4
-    #   with:
-    #     path: ~/.cupy/kernel_cache
-    #     key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache
