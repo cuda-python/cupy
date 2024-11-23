@@ -104,7 +104,7 @@ jobs:
         echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
 
     - name: Save Cache
-      if: always() && ${{ steps.prepare-cache.outputs.CACHE_CAN_REBUILD == "1" }}
+      if: ${{ always() && steps.prepare-cache.outputs.CACHE_CAN_REBUILD == "1" }}
       uses: actions/cache/save@v4
       with:
         path: ${{ env.CACHE_ARCHIVE }}
