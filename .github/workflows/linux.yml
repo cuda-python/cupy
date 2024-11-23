@@ -118,6 +118,7 @@ jobs:
         fi
 
         # this is cache_put in .pfnci/linux/run.sh
+        sudo chown -R runner ${{ env.CACHE_DIR }}
         ls -al ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
