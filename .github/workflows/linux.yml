@@ -89,6 +89,7 @@ jobs:
     - name: test
       id: test
       env:
+        CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
         GPU: 1
       run: |
