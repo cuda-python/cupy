@@ -106,6 +106,7 @@ jobs:
       # TODO: add an if here to check if test completes without error?
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
       run: |
         # TODO: this is dangerous because we're overwriting the global GHA cache!
         # We should have another workflow that updates the global cache upon PR merge.
