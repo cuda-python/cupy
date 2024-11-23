@@ -40,9 +40,9 @@ jobs:
         # TODO: this key might be too simple?
         echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $GITHUB_ENV
 
-    - name: Set up cache
+    - name: Restore Cache
       id: gha-cupy-cache
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: ${{ env.CACHE_ARCHIVE }}
         key: ${{ env.CACHE_KEY }}
@@ -93,3 +93,11 @@ jobs:
         ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
+
+    - name: Save Cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
+        # TODO: set upload-chunk-size?
