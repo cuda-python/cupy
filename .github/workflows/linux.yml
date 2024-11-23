@@ -20,6 +20,9 @@ jobs:
         target: ["cuda126"]
       fail-fast: false
 
+    # FIXME
+    permissions: write-all
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -107,7 +110,6 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
-      permissions: write-all
       run: |
         # TODO: this is dangerous because we're overwriting the global GHA cache!
         # We should have another workflow that updates the global cache upon PR merge.
