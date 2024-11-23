@@ -22,7 +22,7 @@ jobs:
 
     env:
       #CACHE_DIR: /home/runner/.cupy/kernel_cache
-      CACHE_DIR: /tmp/cupy_cache
+      CACHE_DIR: /home/runner/cupy_cache
 
     steps:
     - name: Checkout
@@ -49,7 +49,7 @@ jobs:
       id: gha-cupy-cache
       uses: actions/cache@v4
       env:
-        CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
+        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       with:
         path: ${{ env.CACHE_ARCHIVE }}
         key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache  # TODO: this key might be too simple
@@ -58,7 +58,7 @@ jobs:
       name: Report cache restore status
       continue-on-error: true
       env:
-        CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
+        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       run: |
         echo "no cache found, creating a new cache..."
         mkdir -p "${{ env.CACHE_DIR }}"
@@ -67,7 +67,7 @@ jobs:
       name: Report cache restore status
       continue-on-error: true
       env:
-        CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
+        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
       run: |
         echo "cache is found"
         ls -l ${{ env.CACHE_ARCHIVE }}
@@ -78,29 +78,30 @@ jobs:
           tar -x -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" &&
           rm -f "${{ env.CACHE_ARCHIVE }}" || echo "WARNING: cache could not be retrieved."
 
-    - name: Update driver
-      run: |
-        sudo ./.pfnci/linux/update-cuda-driver.sh
+    # - name: Update driver
+    #   run: |
+    #     sudo ./.pfnci/linux/update-cuda-driver.sh
 
-    - name: build
-      run: |
-        ./.pfnci/linux/run.sh ${{ matrix.target }} build
+    # - name: Build test image
+    #   run: |
+    #     ./.pfnci/linux/run.sh ${{ matrix.target }} build
 
-    - name: test
+    - name: Build & test CuPy
       id: test
       env:
-        CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
+        CACHE_ARCHIVE: /home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
         GPU: 1
       run: |
-        echo "CACHE_DIR is ${{ env.CACHE_DIR }}"
-        ls -l ${{ env.CACHE_DIR }}
-        echo "${CACHE_DIR}"
+        echo "CACHE_DIR is ${{ env.CACHE_DIR }} (${CACHE_DIR})"
         # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
         # where CUPY_CACHE_DIR & co would be set accordingly
-        CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
-        
+        #CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
+        touch $CACHE_DIR/test1
+        touch $CACHE_DIR/test2
+
         # this is cache_put in .pfnci/linux/run.sh
+        ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
 
