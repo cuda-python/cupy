@@ -23,6 +23,8 @@ jobs:
     env:
       #CACHE_DIR: /home/runner/.cupy/kernel_cache
       CACHE_DIR: /tmp/cupy_cache
+      CACHE_ARCHIVE: /tmp/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz
+      CACHE_KEY: ${{ runner.os }}-${{ matrix.target }}-cupy-cache  # TODO: this key might be too simple
 
     steps:
     - name: Checkout
@@ -49,23 +51,31 @@ jobs:
       id: gha-cupy-cache
       uses: actions/cache@v4
       with:
-        path: /tmp/cupy_cache  # TODO: should match CACHE_DIR
-        key: ${{ runner.os }}-${{ matrix.target }}-cupy-cache  # TODO: this key might be too simple
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
 
     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
-      name: List the state of node modules
+      name: Report cache restore status
       continue-on-error: true
       run: echo "no cache found, creating a new cache..."
 
     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
-      name: List the state of node modules
+      name: Report cache restore status
       continue-on-error: true
       run: |
         echo "cache is found"
-        ls /tmp/cupy_cache  # TODO: should match CACHE_DIR
-        echo "CACHE_DIR is ${CACHE_DIR}"
-        echo "CUDA_CACHE_PATH=${CACHE_DIR}/.nv" >> $GITHUB_ENV
-        echo "CUPY_CACHE_DIR=${CACHE_DIR}/.cupy/kernel_cache" >> $GITHUB_ENV
+        ls -l ${{ env.CACHE_DIR }}
+        ls -l ${{ env.CACHE_ARCHIVE }}
+
+        # this is cache_get in .pfnci/linux/run.sh
+        du -h "${{ env.CACHE_ARCHIVE }}" &&
+          tar -x -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" &&
+          rm -f "${{ env.CACHE_ARCHIVE }}" || echo "WARNING: cache could not be retrieved."
+
+        ls -l ${{ env.CACHE_DIR }}
+        echo "CACHE_DIR is ${{ env.CACHE_DIR }}"
+        echo "CUDA_CACHE_PATH=${{ env.CACHE_DIR }}/.nv" >> $GITHUB_ENV
+        echo "CUPY_CACHE_DIR=${{ env.CACHE_DIR }}/.cupy/kernel_cache" >> $GITHUB_ENV
 
     - name: Update driver
       run: |
@@ -81,6 +91,10 @@ jobs:
         echo "CUDA_CACHE_PATH is ${CUDA_CACHE_PATH}"
         echo "CUPY_CACHE_DIR is ${CUPY_CACHE_DIR}"
         ./.pfnci/linux/run.sh ${{ matrix.target }} test
+        
+        # this is cache_put in .pfnci/linux/run.sh
+        tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
+        du -h "${{ env.CACHE_ARCHIVE }}"
       env:
         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
         GPU: 1
