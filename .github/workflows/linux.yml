@@ -107,6 +107,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
+      permissions: write-all
       run: |
         # TODO: this is dangerous because we're overwriting the global GHA cache!
         # We should have another workflow that updates the global cache upon PR merge.
