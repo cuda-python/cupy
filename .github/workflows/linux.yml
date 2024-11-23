@@ -90,6 +90,7 @@ jobs:
         touch $CACHE_DIR/test2
 
     - name: Prepare cache
+      id: prepare-cache
       # TODO: add an if here to check if test completes without error?
       run: |
         # TODO: this is dangerous because we're overwriting the global GHA cache!
@@ -100,10 +101,10 @@ jobs:
         ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
-        echo "CACHE_CAN_REBUILD=true" >> $GITHUB_ENV
+        echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
 
     - name: Save Cache
-      if: always() && ${{ env.CACHE_CAN_REBUILD == "true" }}
+      if: always() && ${{ steps.prepare-cache.outputs.CACHE_CAN_REBUILD == "1" }}
       uses: actions/cache/save@v4
       with:
         path: ${{ env.CACHE_ARCHIVE }}
