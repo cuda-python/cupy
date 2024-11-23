@@ -111,17 +111,19 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
       run: |
+        # this is cache_put in .pfnci/linux/run.sh
+        sudo chown -R runner ${{ env.CACHE_DIR }}
+        ls -al ${{ env.CACHE_DIR }}
+        tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
+        du -h "${{ env.CACHE_ARCHIVE }}"
+
         # TODO: this is dangerous because we're overwriting the global GHA cache!
         # We should have another workflow that updates the global cache upon PR merge.
         if [ $(gh cache list | grep $CACHE_KEY | wc -l) == "1" ]; then
           gh cache delete $CACHE_KEY
         fi
 
-        # this is cache_put in .pfnci/linux/run.sh
-        sudo chown -R runner ${{ env.CACHE_DIR }}
-        ls -al ${{ env.CACHE_DIR }}
-        tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
-        du -h "${{ env.CACHE_ARCHIVE }}"
+        # next step is safe to launch
         echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
 
     - name: Save Cache
