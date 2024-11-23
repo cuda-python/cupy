@@ -70,13 +70,13 @@ jobs:
           tar -x -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" &&
           rm -f "${{ env.CACHE_ARCHIVE }}" || echo "WARNING: cache could not be retrieved."
 
-    # - name: Update driver
-    #   run: |
-    #     sudo ./.pfnci/linux/update-cuda-driver.sh
+    - name: Update driver
+      run: |
+        sudo ./.pfnci/linux/update-cuda-driver.sh
 
-    # - name: Build test image
-    #   run: |
-    #     ./.pfnci/linux/run.sh ${{ matrix.target }} build
+    - name: Build test image
+      run: |
+        ./.pfnci/linux/run.sh ${{ matrix.target }} build
 
     - name: Build & test CuPy
       id: test
@@ -88,9 +88,9 @@ jobs:
         ls -l ${{ env.CACHE_DIR }}
         # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
         # where CUPY_CACHE_DIR & co would be set accordingly
-        #CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
-        touch $CACHE_DIR/test1
-        touch $CACHE_DIR/test2
+        CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
+        #touch $CACHE_DIR/test1
+        #touch $CACHE_DIR/test2
 
     - name: Install gh cli
       # for some reason the GPU runner image does not have gh pre-installed...
