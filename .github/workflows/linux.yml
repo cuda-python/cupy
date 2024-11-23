@@ -94,9 +94,10 @@ jobs:
       run: |
         echo "CACHE_DIR is ${{ env.CACHE_DIR }}"
         ls -l ${{ env.CACHE_DIR }}
-        export CUDA_CACHE_PATH="${{ env.CACHE_DIR }}/.nv"
-        export CUPY_CACHE_DIR="${{ env.CACHE_DIR }}/.cupy/kernel_cache"
-        ./.pfnci/linux/run.sh ${{ matrix.target }} test
+        echo "${CACHE_DIR}"
+        # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
+        # where CUPY_CACHE_DIR & co would be set accordingly
+        CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
         
         # this is cache_put in .pfnci/linux/run.sh
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
