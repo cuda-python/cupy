@@ -89,13 +89,21 @@ jobs:
         touch $CACHE_DIR/test1
         touch $CACHE_DIR/test2
 
+    - name: Prepare cache
+      # TODO: add an if here to check if test completes without error?
+      run:
+        # TODO: this is dangerous because we're overwriting the global GHA cache!
+        # We should have another workflow that updates the global cache upon PR merge.
+        gh cache delete $CACHE_KEY
+
         # this is cache_put in .pfnci/linux/run.sh
         ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
+        echo "CACHE_CAN_REBUILD=1" >> $GITHUB_ENV
 
     - name: Save Cache
-      if: always()
+      if: always() && ${{ env.CACHE_CAN_REBUILD == "1" }}
       uses: actions/cache/save@v4
       with:
         path: ${{ env.CACHE_ARCHIVE }}
