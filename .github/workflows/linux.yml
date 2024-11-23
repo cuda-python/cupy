@@ -100,10 +100,10 @@ jobs:
         ls -l ${{ env.CACHE_DIR }}
         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
         du -h "${{ env.CACHE_ARCHIVE }}"
-        echo "CACHE_CAN_REBUILD=1" >> $GITHUB_ENV
+        echo "CACHE_CAN_REBUILD=true" >> $GITHUB_ENV
 
     - name: Save Cache
-      if: always() && ${{ env.CACHE_CAN_REBUILD == "1" }}
+      if: always() && ${{ env.CACHE_CAN_REBUILD == "true" }}
       uses: actions/cache/save@v4
       with:
         path: ${{ env.CACHE_ARCHIVE }}
