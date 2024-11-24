@@ -82,7 +82,7 @@ jobs:
       id: test
       env:
         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
-        CUPY_CACHE_DIR: "${{ env.CACHE_DIR }}\.cupy"
+        CUPY_CACHE_DIR: "${{ env.CACHE_DIR }}\\.cupy"
         GPU: 1
       run: |
         echo "test"
