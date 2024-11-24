@@ -29,6 +29,13 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Install gh cli
+      # for some reason the GPU runner image does not have gh pre-installed...
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/cli/cli/releases/latest/download/gh_windows_amd64.msi" -OutFile "gh_installer.msi"
+        Start-Process msiexec.exe -Wait -ArgumentList '/i "gh_installer.msi" /qn'
+        gh --version
+
     - name: Check system
       run: |
         echo "nvidia-smi:"
@@ -86,6 +93,7 @@ jobs:
         GPU: 1
       run: |
         echo "test"
+        ni -ItemType File -Path "$env:CUPY_CACHE_DIR\\abc"
         echo "CUPY_CACHE_DIR=$env:CUPY_CACHE_DIR" >> $env:GITHUB_ENV
         #.pfnci\windows\run.bat 12.0 3.10 test
 
