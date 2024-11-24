@@ -1,54 +1,126 @@
-# name: Tests Windows
-# 
-# on:
-#   pull_request:
-# 
-# # Concurrency based on workflow name and branch
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.ref }}
-#   cancel-in-progress: true
-# 
-# jobs:
-#   Windows:
-#     runs-on:
-#       group: cupy-ci
-#       labels: windows-gpu
-# 
-#     strategy:
-#       matrix:
-#         target: ["cuda112"]
-#       fail-fast: false
-# 
-#     env:
-#       CACHE_DIR: /home/runner/.cupy/kernel_cache
-# 
-#     steps:
-#     - name: Checkout
-#       uses: actions/checkout@v4
-#       with:
-#         submodules: recursive
-# 
-#     - name: Check
-#       run: |
-#         echo "nvidia-smi:"
-#         nvidia-smi
-# 
-#     # - name: Install deps
-#     #   continue-on-error: true
-#     #   shell: powershell
-#     #   run: |
-#     #     git clone https://github.com/microsoft/vcpkg.git
-#     #     cd vcpkg
-#     #     .\bootstrap-vcpkg.bat
-#     #     .\vcpkg.exe install zlib
-#     #     .\vcpkg.exe integrate install
-#     #     New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
-# 
-#     - name: test
-#       id: test
-#       run: |
-#         .pfnci\windows\run.bat 12.0 3.10 test
-#       env:
-#         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
-#         GPU: 1
-# 
+name: Tests Windows
+
+on:
+  pull_request:
+
+# Concurrency based on workflow name and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Windows:
+    runs-on:
+      group: cupy-ci
+      labels: windows-gpu
+
+    strategy:
+      matrix:
+        #target: ["cuda112"]
+        target: ["cuda126"]
+      fail-fast: false
+
+    # FIXME
+    permissions: write-all
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Check system
+      run: |
+        echo "nvidia-smi:"
+        nvidia-smi
+
+    # - name: Install deps
+    #   continue-on-error: true
+    #   shell: powershell
+    #   run: |
+    #     git clone https://github.com/microsoft/vcpkg.git
+    #     cd vcpkg
+    #     .\bootstrap-vcpkg.bat
+    #     .\vcpkg.exe install zlib
+    #     .\vcpkg.exe integrate install
+    #     New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
+
+    - name: Set up cache variables
+      run: |
+        echo "CACHE_DIR=%USERPROFILE%" >> $GITHUB_ENV
+        echo "CACHE_ARCHIVE=%USERPROFILE%\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $GITHUB_ENV
+        # TODO: this key might be too simple?
+        echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $GITHUB_ENV
+
+    - name: Restore Cache
+      id: gha-cupy-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
+      name: Report cache restore status (miss)
+      continue-on-error: true
+      run: |
+        echo "no cache found, creating a new cache..."
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
+      name: Report cache restore status (hit)
+      continue-on-error: true
+      run: |
+        echo "cache is found"
+        ls -force ${{ env.CACHE_ARCHIVE }}
+
+        # this is DownloadCache in .pfnci/windows/test.ps1
+        pushd ${{ env.CACHE_DIR }}
+        7z x ${{ env.CACHE_ARCHIVE }}
+        rm ${{ env.CACHE_ARCHIVE }}
+        popd
+
+    - name: Build & test CuPy
+      id: test
+      env:
+        CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
+        CUPY_CACHE_DIR: "${{ env.CACHE_DIR }}\.cupy"
+        GPU: 1
+      run: |
+        echo "test"
+        echo "CUPY_CACHE_DIR=%CUPY_CACHE_DIR%" >> $GITHUB_ENV
+        #.pfnci\windows\run.bat 12.0 3.10 test
+
+    - name: Prepare cache
+      id: prepare-cache
+      # TODO: add an if here to check if test completes without error?
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        # this is DownloadCache in .pfnci/windows/test.ps1
+        ls -force ${{ env.CACHE_DIR }}
+        echo "Trimming kernel cache..."
+        python .pfnci\trim_cupy_kernel_cache.py --max-size 1000000000 --rm
+
+        pushd ${{ env.CACHE_DIR }}
+        # -mx=0 ... no compression
+        # -mtc=on ... preserve timestamp
+        echo "Compressing kernel cache..."
+        7z a -tzip -mx=0 -mtc=on ${{ env.CACHE_ARCHIVE }} .cupy
+        popd
+
+        # TODO: this is dangerous because we're overwriting the global GHA cache!
+        # We should have another workflow that updates the global cache upon PR merge.
+        if ((gh cache list | Select-String -Pattern ${{ env.CACHE_KEY }}).Count -eq 1) {
+          gh cache delete ${{ env.CACHE_KEY }}
+        }
+
+        # next step is safe to launch
+        echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
+
+    - name: Save Cache
+      if: ${{ always() && steps.prepare-cache.outputs.CACHE_CAN_REBUILD == '1' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
+        # TODO: set upload-chunk-size?
