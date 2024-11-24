@@ -40,7 +40,8 @@ jobs:
         GH_MSI_URL: https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_windows_amd64.msi
       run: |
         Invoke-WebRequest -Uri "$env:GH_MSI_URL" -OutFile "gh_installer.msi"
-        Start-Process msiexec.exe -Wait -Verbose -ArgumentList '/i "gh_installer.msi" /n'
+        Start-Process msiexec.exe -Wait -Verbose -ArgumentList '/i "gh_installer.msi" /qn'
+        $env:Path += ";C:\\Program Files\\GitHub CLI;C:\\Program Files (x86)\\GitHub CLI"
         gh --version
 
     - name: Check system
