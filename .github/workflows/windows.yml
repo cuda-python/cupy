@@ -47,10 +47,10 @@ jobs:
 
     - name: Set up cache variables
       run: |
-        echo "CACHE_DIR=%USERPROFILE%" >> $GITHUB_ENV
-        echo "CACHE_ARCHIVE=%USERPROFILE%\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $GITHUB_ENV
+        echo "CACHE_DIR=%USERPROFILE%" >> $env:GITHUB_ENV
+        echo "CACHE_ARCHIVE=%USERPROFILE%\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $env:GITHUB_ENV
         # TODO: this key might be too simple?
-        echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $GITHUB_ENV
+        echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $env:GITHUB_ENV
 
     - name: Restore Cache
       id: gha-cupy-cache
@@ -86,7 +86,7 @@ jobs:
         GPU: 1
       run: |
         echo "test"
-        echo "CUPY_CACHE_DIR=%CUPY_CACHE_DIR%" >> $GITHUB_ENV
+        echo "CUPY_CACHE_DIR=%CUPY_CACHE_DIR%" >> $env:GITHUB_ENV
         #.pfnci\windows\run.bat 12.0 3.10 test
 
     - name: Prepare cache
@@ -115,7 +115,7 @@ jobs:
         }
 
         # next step is safe to launch
-        echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
+        echo "CACHE_CAN_REBUILD=1" >> $env:GITHUB_OUTPUT
 
     - name: Save Cache
       if: ${{ always() && steps.prepare-cache.outputs.CACHE_CAN_REBUILD == '1' }}
