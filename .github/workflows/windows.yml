@@ -31,8 +31,11 @@ jobs:
 
     - name: Install gh cli
       # for some reason the GPU runner image does not have gh pre-installed...
+      env:
+        # doesn't seem there's an easy way to avoid hard-coding it?
+        GH_MSI_URL: https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_windows_amd64.msi
       run: |
-        Invoke-WebRequest -Uri "https://github.com/cli/cli/releases/latest/download/gh_windows_amd64.msi" -OutFile "gh_installer.msi"
+        Invoke-WebRequest -Uri "$env:GH_MSI_URL" -OutFile "gh_installer.msi"
         Start-Process msiexec.exe -Wait -ArgumentList '/i "gh_installer.msi" /qn'
         gh --version
 
