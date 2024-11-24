@@ -104,10 +104,14 @@ jobs:
         CUPY_CACHE_DIR: "${{ env.CACHE_DIR }}\\.cupy"
         GPU: 1
       run: |
-        echo "test"
-        ni -force -ItemType File -Path "$env:CUPY_CACHE_DIR\\abc"
+        #echo "test"
+        #ni -force -ItemType File -Path "$env:CUPY_CACHE_DIR\\abc"
+        # The next step requires this environment variable to be visible
         echo "CUPY_CACHE_DIR=$env:CUPY_CACHE_DIR" >> $env:GITHUB_ENV
-        #.pfnci\windows\run.bat 12.0 3.10 test
+        # FIXME: get the version strings from a test matrix
+        .pfnci\windows\GHA-test.ps1 -stage setup -python 3.10 -cuda 12.6
+        .pfnci\windows\GHA-test.ps1 -stage build
+        .pfnci\windows\GHA-test.ps1 -stage test
 
     - name: Prepare cache
       id: prepare-cache

@@ -18,14 +18,18 @@ function RunWithTimeout {
     param(
         [Parameter(Mandatory=$true)]
         [int]$timeout,
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$false)]
         [string]$output,
         [Parameter(Mandatory=$true)]
         [string]$command,
         [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
         [string[]]$params
     )
-    $process = Start-Process -PassThru -NoNewWindow -RedirectStandardOutput $output -FilePath $command -ArgumentList $params
+    if ($PSBoundParameters.ContainsKey('output')) {
+        $process = Start-Process -PassThru -NoNewWindow -RedirectStandardOutput $output -FilePath $command -ArgumentList $params
+    } else {
+        $process = Start-Process -PassThru -NoNewWindow -FilePath $command -ArgumentList $params
+    }
     try {
         $process | Wait-Process -Timeout $timeout
     } catch [TimeoutException] {
