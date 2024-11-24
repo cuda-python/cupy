@@ -17,7 +17,8 @@ jobs:
     strategy:
       matrix:
         #target: ["cuda112"]
-        target: ["cuda126"]
+        #target: ["cuda126"]
+        target: ["cuda114"]  # choosing 11.4 here, see the comment below
       fail-fast: false
 
     # FIXME
@@ -108,8 +109,9 @@ jobs:
         #ni -force -ItemType File -Path "$env:CUPY_CACHE_DIR\\abc"
         # The next step requires this environment variable to be visible
         echo "CUPY_CACHE_DIR=$env:CUPY_CACHE_DIR" >> $env:GITHUB_ENV
-        # FIXME: get the version strings from a test matrix
-        .pfnci\windows\GHA-test.ps1 -stage setup -python 3.10 -cuda 12.6
+        # FIXME: get the version strings from a test matrix. Right now, we have
+        # to hard code the values to what're pre-installed in the CI image.
+        .pfnci\windows\GHA-test.ps1 -stage setup -python 3.12 -cuda 11.4
         .pfnci\windows\GHA-test.ps1 -stage build
         .pfnci\windows\GHA-test.ps1 -stage test
 

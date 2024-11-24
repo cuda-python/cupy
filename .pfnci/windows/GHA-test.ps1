@@ -30,6 +30,14 @@ function Main {
         RunOrDie python -m pip install -U pip setuptools wheel
         RunOrDie python -m pip freeze
 
+        # Check MSVC version
+        # TODO: we might want to be able to choose MSVC version in the future
+        $CL_VERSION_STRING = & cl.exe /?
+        if ($CL_VERSION_STRING -match "Version (\d+\.\d+)\.\d+") {
+            $CL_VERSION = [version]$matches[1]
+            echo "Detected cl.exe version: $CL_VERSION"
+        }
+
         return
     }
     elseif ($stage -eq "build") {
