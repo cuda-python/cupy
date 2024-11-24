@@ -79,6 +79,7 @@ jobs:
       continue-on-error: true
       run: |
         echo "no cache found, creating a new cache..."
+        mkdir -force ${{ env.CACHE_DIR }}\.cupy
 
     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
       name: Report cache restore status (hit)
