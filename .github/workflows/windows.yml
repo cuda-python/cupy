@@ -25,9 +25,12 @@ jobs:
     permissions: write-all
 
     steps:
-    - name: Enable long path
+    - name: Pre-checkout configure
       run: |
+        # Enable long path
         Set-ItemProperty "Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -value 1
+        # Enable symlinks
+        git config core.symlinks true
 
     - name: Checkout
       uses: actions/checkout@v4
