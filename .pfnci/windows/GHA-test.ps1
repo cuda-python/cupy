@@ -13,6 +13,26 @@ $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_flexci.ps1"
 
 
+function FindAndCheckMSVC {
+    # Note: this assumes vs2017, e.g. see _find_vc2017():
+    # https://github.com/pypa/setuptools/blob/9692cde009af4651819d18a1e839d3b6e3fcd77d/setuptools/_distutils/_msvccompiler.py#L67
+
+    $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+              -latest `
+              -products * `
+              -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+              -property installationPath
+    $clPath = Join-Path $vsPath "VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe"
+    $clPath = Get-ChildItem $clPath
+
+    $CL_VERSION_STRING = & $clPath /?
+    if ($CL_VERSION_STRING -match "Version (\d+\.\d+)\.\d+") {
+        $CL_VERSION = [version]$matches[1]
+        echo "Detected cl.exe version: $CL_VERSION"
+    }
+}
+
+
 function Main {
     # Setup environment
     if ($stage -eq "setup") {
@@ -32,11 +52,7 @@ function Main {
 
         # Check MSVC version
         # TODO: we might want to be able to choose MSVC version in the future
-        $CL_VERSION_STRING = & cl.exe /?
-        if ($CL_VERSION_STRING -match "Version (\d+\.\d+)\.\d+") {
-            $CL_VERSION = [version]$matches[1]
-            echo "Detected cl.exe version: $CL_VERSION"
-        }
+        FindAndCheckMSVC
 
         return
     }
