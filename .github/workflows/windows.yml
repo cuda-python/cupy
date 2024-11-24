@@ -47,8 +47,8 @@ jobs:
 
     - name: Set up cache variables
       run: |
-        echo "CACHE_DIR=%USERPROFILE%" >> $env:GITHUB_ENV
-        echo "CACHE_ARCHIVE=%USERPROFILE%\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $env:GITHUB_ENV
+        echo "CACHE_DIR=$env:USERPROFILE" >> $env:GITHUB_ENV
+        echo "CACHE_ARCHIVE=$env:USERPROFILE\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $env:GITHUB_ENV
         # TODO: this key might be too simple?
         echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $env:GITHUB_ENV
 
@@ -86,7 +86,7 @@ jobs:
         GPU: 1
       run: |
         echo "test"
-        echo "CUPY_CACHE_DIR=%CUPY_CACHE_DIR%" >> $env:GITHUB_ENV
+        echo "CUPY_CACHE_DIR=$env:CUPY_CACHE_DIR" >> $env:GITHUB_ENV
         #.pfnci\windows\run.bat 12.0 3.10 test
 
     - name: Prepare cache
