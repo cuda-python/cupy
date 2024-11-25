@@ -107,9 +107,9 @@ function Main {
     echo "CuPy Configuration:"
     RunOrDie python -c "import cupy; print(cupy); cupy.show_config()"
     echo "Running test..."
-    $pytest_tests = @("cupy_tests/core_tests/test*.py")  # TODO: remove me
+    $pytest_tests = (Get-ChildItem "cupy_tests/core_tests/test*.py").FullName -join " "  # TODO: remove me
     # TODO: pass timeout as a function argument?
-    $test_retval = RunWithTimeout -timeout 18000 -output "" -- python -m pytest -rfEX @pytest_opts --maxfail=10 @pytest_tests
+    $test_retval = RunWithTimeout -timeout 18000 -output "" -- python -m pytest -rfEX @pytest_opts --maxfail=10 $pytest_tests
     popd
 
     if ($test_retval -ne 0) {
