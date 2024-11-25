@@ -133,7 +133,7 @@ main() {
         docker_args+=(--interactive)
       fi
       if [[ "${CACHE_DIR:-}" != "" ]]; then
-        docker_args+=(--volume="${CACHE_DIR}:${CACHE_DIR}" --env "CACHE_DIR=${CACHE_DIR}")
+        docker_args+=(--volume="${CACHE_DIR}:/cache" --env "CACHE_DIR=/cache")
       fi
       if [[ "${PULL_REQUEST:-}" != "" ]]; then
         docker_args+=(--env "PULL_REQUEST=${PULL_REQUEST}")
@@ -141,12 +141,15 @@ main() {
       if [[ "${GPU:-}" != "" ]]; then
         docker_args+=(--env "GPU=${GPU}")
       fi
+      if [[ "${CUPY_NVCC_GENERATE_CODE:-}" != "" ]]; then
+        docker_args+=(--env "CUPY_NVCC_GENERATE_CODE=${CUPY_NVCC_GENERATE_CODE}")
+      fi
       if [[ "${TARGET}" == *rocm* ]]; then
         docker_args+=(--device=/dev/kfd --device=/dev/dri)
       elif [[ "${TARGET}" == cuda-build ]]; then
         docker_args+=()
       else
-        docker_args+=(--runtime=nvidia)
+        docker_args+=(--gpus=all)
       fi
 
       test_command=(bash "/src/.pfnci/linux/tests/${TARGET}.sh")

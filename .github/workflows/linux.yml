@@ -1,0 +1,135 @@
+# name: Tests linux
+# 
+# on:
+#   pull_request:
+# 
+# # Concurrency based on workflow name and branch
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+# 
+# jobs:
+#   linux:
+#     runs-on:
+#       group: cupy-ci
+#       labels: linux-gpu
+# 
+#     strategy:
+#       matrix:
+#         #target: ["cuda11x-cuda-python", "cuda112", "cuda118", "cuda120", "cuda126"]
+#         target: ["cuda126"]
+#       fail-fast: false
+# 
+#     # FIXME
+#     permissions: write-all
+# 
+#     steps:
+#     - name: Checkout
+#       uses: actions/checkout@v4
+#       with:
+#         submodules: recursive
+# 
+#     - name: Install gh cli
+#       # for some reason the GPU runner image does not have gh pre-installed...
+#       run: |
+#         (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+#         	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
+#         	&& wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+#                sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+#         	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+#         	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+#         	&& sudo apt update \
+#         	&& sudo apt install gh -y
+# 
+#     - name: Check system
+#       run: |
+#         echo "UBUNTU VERSION:"
+#         lsb_release -a
+#         echo "nvidia-smi:"
+#         nvidia-smi
+# 
+#     - name: Set up cache variables
+#       run: |
+#         echo "CACHE_DIR=/home/runner/cupy_cache" >> $GITHUB_ENV
+#         echo "CACHE_ARCHIVE=/home/runner/${{ runner.os }}-${{ matrix.target }}-cupy-cache.tar.gz" >> $GITHUB_ENV
+#         # TODO: this key might be too simple?
+#         echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $GITHUB_ENV
+# 
+#     - name: Restore Cache
+#       id: gha-cupy-cache
+#       uses: actions/cache/restore@v4
+#       with:
+#         path: ${{ env.CACHE_ARCHIVE }}
+#         key: ${{ env.CACHE_KEY }}
+# 
+#     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
+#       name: Report cache restore status (miss)
+#       continue-on-error: true
+#       run: |
+#         echo "no cache found, creating a new cache..."
+#         mkdir -p "${{ env.CACHE_DIR }}"
+# 
+#     - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
+#       name: Report cache restore status (hit)
+#       continue-on-error: true
+#       run: |
+#         echo "cache is found"
+#         ls -l ${{ env.CACHE_ARCHIVE }}
+# 
+#         # this is cache_get in .pfnci/linux/run.sh
+#         mkdir -p "${{ env.CACHE_DIR }}"
+#         du -h "${{ env.CACHE_ARCHIVE }}" &&
+#           tar -x -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" &&
+#           rm -f "${{ env.CACHE_ARCHIVE }}" || echo "WARNING: cache could not be retrieved."
+# 
+#     - name: Update driver
+#       run: |
+#         sudo ./.pfnci/linux/update-cuda-driver.sh
+# 
+#     - name: Build test image
+#       run: |
+#         ./.pfnci/linux/run.sh ${{ matrix.target }} build
+# 
+#     - name: Build & test CuPy
+#       id: test
+#       env:
+#         CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
+#         GPU: 1
+#       run: |
+#         echo "CACHE_DIR is ${{ env.CACHE_DIR }} (${CACHE_DIR})"
+#         ls -al ${{ env.CACHE_DIR }}
+#         # need to set CACHE_DIR so that run.sh would pass it down to the next docker run,
+#         # where CUPY_CACHE_DIR & co would be set accordingly
+#         CACHE_DIR=${{ env.CACHE_DIR }} ./.pfnci/linux/run.sh ${{ matrix.target }} test
+#         #touch $CACHE_DIR/test1
+#         #touch $CACHE_DIR/test2
+# 
+#     - name: Prepare cache
+#       id: prepare-cache
+#       # TODO: add an if here to check if test completes without error?
+#       env:
+#         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#         GH_REPO: ${{ github.repository }}
+#       run: |
+#         # this is cache_put in .pfnci/linux/run.sh
+#         sudo chown -R runner ${{ env.CACHE_DIR }}
+#         ls -al ${{ env.CACHE_DIR }}
+#         tar -c -f "${{ env.CACHE_ARCHIVE }}" -C "${{ env.CACHE_DIR }}" .
+#         du -h "${{ env.CACHE_ARCHIVE }}"
+# 
+#         # TODO: this is dangerous because we're overwriting the global GHA cache!
+#         # We should have another workflow that updates the global cache upon PR merge.
+#         if [ $(gh cache list | grep $CACHE_KEY | wc -l) == "1" ]; then
+#           gh cache delete $CACHE_KEY
+#         fi
+# 
+#         # next step is safe to launch
+#         echo "CACHE_CAN_REBUILD=1" >> $GITHUB_OUTPUT
+# 
+#     - name: Save Cache
+#       if: ${{ always() && steps.prepare-cache.outputs.CACHE_CAN_REBUILD == '1' }}
+#       uses: actions/cache/save@v4
+#       with:
+#         path: ${{ env.CACHE_ARCHIVE }}
+#         key: ${{ env.CACHE_KEY }}
+#         # TODO: set upload-chunk-size?

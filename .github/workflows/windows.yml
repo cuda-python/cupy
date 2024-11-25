@@ -1,0 +1,157 @@
+name: Tests Windows
+
+on:
+  pull_request:
+
+# Concurrency based on workflow name and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Windows:
+    runs-on:
+      group: cupy-ci
+      labels: windows-gpu
+
+    strategy:
+      matrix:
+        #target: ["cuda112"]
+        #target: ["cuda126"]
+        target: ["cuda114"]  # choosing 11.4 here, see the comment below
+      fail-fast: false
+
+    # FIXME
+    permissions: write-all
+
+    steps:
+    - name: Pre-checkout configure
+      run: |
+        # Enable long path
+        Set-ItemProperty "Registry::HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -value 1
+        # Enable symlinks
+        git config --global core.symlinks true
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install gh cli
+      # for some reason the GPU runner image does not have gh pre-installed...
+      env:
+        # doesn't seem there's an easy way to avoid hard-coding it?
+        GH_MSI_URL: https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_windows_amd64.msi
+      run: |
+        Invoke-WebRequest -Uri "$env:GH_MSI_URL" -OutFile "gh_installer.msi"
+        Start-Process msiexec.exe -Wait -Verbose -ArgumentList '/i "gh_installer.msi" /qn'
+        $GH_POSSIBLE_PATHS = "C:\\Program Files\\GitHub CLI", "C:\\Program Files (x86)\\GitHub CLI"
+        foreach ($p in $GH_POSSIBLE_PATHS) {
+            echo "$p" >> $env:GITHUB_PATH
+            $env:Path += ";$p"
+        }
+        gh --version
+
+    - name: Check system
+      run: |
+        echo "nvidia-smi:"
+        nvidia-smi
+
+    # - name: Install deps
+    #   continue-on-error: true
+    #   shell: powershell
+    #   run: |
+    #     git clone https://github.com/microsoft/vcpkg.git
+    #     cd vcpkg
+    #     .\bootstrap-vcpkg.bat
+    #     .\vcpkg.exe install zlib
+    #     .\vcpkg.exe integrate install
+    #     New-Item -ItemType Directory -Force -Path "C:\Development\ZLIB" | Out-Null
+
+    - name: Set up cache variables
+      run: |
+        echo "CACHE_DIR=$env:USERPROFILE" >> $env:GITHUB_ENV
+        echo "CACHE_ARCHIVE=$env:USERPROFILE\${{ runner.os }}-${{ matrix.target }}-cupy-cache.zip" >> $env:GITHUB_ENV
+        # TODO: this key might be too simple?
+        echo "CACHE_KEY=${{ runner.os }}-${{ matrix.target }}-cupy-cache" >> $env:GITHUB_ENV
+
+    - name: Restore Cache
+      id: gha-cupy-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit != 'true' }}
+      name: Report cache restore status (miss)
+      continue-on-error: true
+      run: |
+        echo "no cache found, creating a new cache..."
+        mkdir -force ${{ env.CACHE_DIR }}\.cupy
+
+    - if: ${{ steps.gha-cupy-cache.outputs.cache-hit == 'true' }}
+      name: Report cache restore status (hit)
+      continue-on-error: true
+      run: |
+        echo "cache is found"
+        ls -force ${{ env.CACHE_ARCHIVE }}
+
+        # this is DownloadCache in .pfnci/windows/test.ps1
+        pushd ${{ env.CACHE_DIR }}
+        7z x ${{ env.CACHE_ARCHIVE }}
+        rm ${{ env.CACHE_ARCHIVE }}
+        popd
+        ls -force ${{ env.CACHE_DIR }}
+
+    - name: Build & test CuPy
+      id: test
+      env:
+        CUPY_NVCC_GENERATE_CODE: "arch=compute_75,code=sm_75"
+        CUPY_CACHE_DIR: "${{ env.CACHE_DIR }}\\.cupy"
+        GPU: 1
+      run: |
+        #echo "test"
+        #ni -force -ItemType File -Path "$env:CUPY_CACHE_DIR\\abc"
+        # The next step requires this environment variable to be visible
+        echo "CUPY_CACHE_DIR=$env:CUPY_CACHE_DIR" >> $env:GITHUB_ENV
+        # FIXME: get the version strings from a test matrix. Right now, we have
+        # to hard code the values to what're pre-installed in the CI image.
+        .pfnci\windows\GHA-test.ps1 -stage setup -python 3.12 -cuda 11.4
+        .pfnci\windows\GHA-test.ps1 -stage build
+        .pfnci\windows\GHA-test.ps1 -stage test
+
+    - name: Prepare cache
+      id: prepare-cache
+      # TODO: add an if here to check if test completes without error?
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        # this is DownloadCache in .pfnci/windows/test.ps1
+        ls -force ${{ env.CACHE_DIR }}
+        echo "Trimming kernel cache..."
+        python .pfnci\trim_cupy_kernel_cache.py --max-size 1000000000 --rm
+
+        pushd ${{ env.CACHE_DIR }}
+        # -mx=0 ... no compression
+        # -mtc=on ... preserve timestamp
+        echo "Compressing kernel cache..."
+        7z a -tzip -mx=0 -mtc=on ${{ env.CACHE_ARCHIVE }} .cupy
+        popd
+
+        # TODO: this is dangerous because we're overwriting the global GHA cache!
+        # We should have another workflow that updates the global cache upon PR merge.
+        if ((gh cache list | Select-String -Pattern ${{ env.CACHE_KEY }}).Count -eq 1) {
+          gh cache delete ${{ env.CACHE_KEY }}
+        }
+
+        # next step is safe to launch
+        echo "CACHE_CAN_REBUILD=1" >> $env:GITHUB_OUTPUT
+
+    - name: Save Cache
+      if: ${{ always() && steps.prepare-cache.outputs.CACHE_CAN_REBUILD == '1' }}
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ env.CACHE_ARCHIVE }}
+        key: ${{ env.CACHE_KEY }}
+        # TODO: set upload-chunk-size?

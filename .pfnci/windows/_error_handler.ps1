@@ -19,13 +19,18 @@ function RunWithTimeout {
         [Parameter(Mandatory=$true)]
         [int]$timeout,
         [Parameter(Mandatory=$true)]
+        [AllowEmptyString()]
         [string]$output,
         [Parameter(Mandatory=$true)]
         [string]$command,
         [Parameter(Mandatory=$true, ValueFromRemainingArguments=$true)]
         [string[]]$params
     )
-    $process = Start-Process -PassThru -NoNewWindow -RedirectStandardOutput $output -FilePath $command -ArgumentList $params
+    if ($output) {
+        $process = Start-Process -PassThru -NoNewWindow -RedirectStandardOutput $output -FilePath $command -ArgumentList $params
+    } else {
+        $process = Start-Process -PassThru -NoNewWindow -FilePath $command -ArgumentList $params
+    }
     try {
         $process | Wait-Process -Timeout $timeout
     } catch [TimeoutException] {
