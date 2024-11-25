@@ -120,26 +120,26 @@ function Main {
     $is_pull_request = IsPullRequestTest
     $cache_archive = "windows-cuda${cuda}-${base_branch}.zip"
 
-    # DownloadCache "${cache_archive}"
+    DownloadCache "${cache_archive}"
 
     if (-Not $is_pull_request) {
         $Env:CUPY_TEST_FULL_COMBINATION = "1"
     }
 
     # Install dependency for cuDNN 8.3+
-    # echo ">> Installing zlib"
-    # InstallZLIB
+    echo ">> Installing zlib"
+    InstallZLIB
 
     pushd tests
     echo "CuPy Configuration:"
     RunOrDie python -c "import cupy; print(cupy); cupy.show_config()"
     echo "Running test..."
-    $test_retval = RunWithTimeout -timeout 18000 -output ../cupy_test_log.txt -- python -m pytest -rfEX @pytest_opts cupy_tests/core_tests | Tee-Object -Append ../cupy_test_log.txt
+    $test_retval = RunWithTimeout -timeout 18000 -output ../cupy_test_log.txt -- python -m pytest -rfEX @pytest_opts .
     popd
 
-    # if (-Not $is_pull_request) {
-    #     UploadCache "${cache_archive}"
-    # }
+    if (-Not $is_pull_request) {
+        UploadCache "${cache_archive}"
+    }
 
     echo "------------------------------------------------------------------------------------------"
     echo "Last 10 lines from the test output:"
