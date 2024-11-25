@@ -45,9 +45,11 @@ jobs:
       run: |
         Invoke-WebRequest -Uri "$env:GH_MSI_URL" -OutFile "gh_installer.msi"
         Start-Process msiexec.exe -Wait -Verbose -ArgumentList '/i "gh_installer.msi" /qn'
-        $env:GH_POSSIBLE_PATHS = "C:\\Program Files\\GitHub CLI;C:\\Program Files (x86)\\GitHub CLI"
-        echo "GH_POSSIBLE_PATHS=$env:GH_POSSIBLE_PATHS" >> $env:GITHUB_ENV
-        $env:Path += ";$env:GH_POSSIBLE_PATHS"
+        $GH_POSSIBLE_PATHS = "C:\\Program Files\\GitHub CLI", "C:\\Program Files (x86)\\GitHub CLI"
+        foreach ($p in $GH_POSSIBLE_PATHS) {
+            echo "$p" >> $env:GITHUB_PATH
+            $env:Path += ";$p"
+        }
         gh --version
 
     - name: Check system
@@ -139,7 +141,6 @@ jobs:
 
         # TODO: this is dangerous because we're overwriting the global GHA cache!
         # We should have another workflow that updates the global cache upon PR merge.
-        $env:Path += ";$env:GH_POSSIBLE_PATHS"
         if ((gh cache list | Select-String -Pattern ${{ env.CACHE_KEY }}).Count -eq 1) {
           gh cache delete ${{ env.CACHE_KEY }}
         }

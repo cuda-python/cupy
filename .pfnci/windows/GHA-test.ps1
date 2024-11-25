@@ -23,11 +23,13 @@ function FindAndCheckMSVC {
               -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
               -property installationPath
     $clPath = Join-Path $vsPath "VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe"
-    $clPath = Get-ChildItem $clPath
-
-    $CL_VERSION_STRING = & $clPath /?
-    if ($CL_VERSION_STRING -match "Version (\d+\.\d+)\.\d+") {
-        $CL_VERSION = [version]$matches[1]
+    $clPath = (Get-ChildItem $clPath).FullName
+    echo "found cl.exe: $clPath"
+    # For some reason below just doesn't work in the CI...
+    Start-Process -NoNewWindow -RedirectStandardError cl.out -FilePath "$clPath"
+    $CL_VERSION_STRING = & type cl.out
+    if (($CL_VERSION_STRING -join " ") -match "Version (\d+\.\d+)\.\d+") {
+        $CL_VERSION = $matches[1]
         echo "Detected cl.exe version: $CL_VERSION"
     }
 }
@@ -105,9 +107,9 @@ function Main {
     echo "CuPy Configuration:"
     RunOrDie python -c "import cupy; print(cupy); cupy.show_config()"
     echo "Running test..."
-    $pytest_tests = "cupy_tests/core_tests/test*.py"  # TODO: remove me
+    $pytest_tests = @("cupy_tests/core_tests/test*.py")  # TODO: remove me
     # TODO: pass timeout as a function argument?
-    $test_retval = RunWithTimeout -timeout 18000 -- python -m pytest -rfEX @pytest_opts @pytest_tests
+    $test_retval = RunWithTimeout -timeout 18000 -output "" -- python -m pytest -rfEX @pytest_opts --maxfail=10 @pytest_tests
     popd
 
     if ($test_retval -ne 0) {
